@@ -50,7 +50,11 @@ XMP_Profile_Baker/
 
 4. **Get Your Files**
    - Processed XMP files will be in the `output/` folder
-   - Install them in Lightroom as usual
+
+5. **Install in Lightroom**
+   - Copy + Paste them into `%APPDATA%\Adobe\CameraRaw\CameraProfiles\Settings`
+   - Restart Lightroom
+   - Check under "Profiles" if they're installed
 
 ## Requirements
 
