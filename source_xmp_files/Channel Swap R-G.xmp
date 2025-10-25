@@ -41,7 +41,7 @@
    </crs:SortName>
    <crs:Group>
     <rdf:Alt>
-     <rdf:li xml:lang="x-default">Color Swap</rdf:li>
+     <rdf:li xml:lang="x-default">Channel Swap</rdf:li>
     </rdf:Alt>
    </crs:Group>
    <crs:Description>
