@@ -1,0 +1,13 @@
+📁 DCP Profile Folder
+====================
+
+INSTRUCTIONS:
+1. Copy your custom infrared .dcp profile into this folder
+2. Profile location: %APPDATA%\Adobe\CameraRaw\CameraProfiles\Imported
+3. Example: "Sony A7 II Infrared.dcp"
+
+Once you place your .dcp file here, run the program using "run_program.bat"
+
+The program will embed your DCP profile reference into the XMP files,
+creating universal profiles that work with your specific camera's
+extended white balance capabilities.
