@@ -119,4 +119,4 @@ For issues or questions, visit the project repository or create an issue.
 
 ---
 
-**Created by Josef Brockamp** | [github.com/CheeseCube312](https://github.com/CheeseCube312)
+**Created by Josef Brockamp using Copilot** | [github.com/CheeseCube312](https://github.com/CheeseCube312)
