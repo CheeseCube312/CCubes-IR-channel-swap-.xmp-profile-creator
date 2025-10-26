@@ -1,5 +1,3 @@
-# Disclaimer: CURRENTLY BROKEN
-
 # XMP Profile Baker - Infrared Photography Tool
 
 **Embed your custom DCP profile into XMP files for universal camera compatibility**

@@ -1,272 +1,356 @@
 #!/usr/bin/env python3
 """
-XMP Profile Baker - Infrared Photography Tool
-Embeds custom DCP profiles into XMP files for true universal compatibility
+XMP Profile Baker - Simple tool to embed camera profiles into XMP files
 """
 
-import os
 import re
 import shutil
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from pathlib import Path
-import threading
-import time
+from threading import Thread
 
 class XMPProfileBaker:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("XMP Profile Baker - Infrared Photography")
-        self.root.geometry("600x400")
+        self.root.title("XMP Profile Baker")
+        self.root.geometry("600x500")
         self.root.resizable(False, False)
         
-        # Set up paths
-        self.script_dir = Path(__file__).parent
-        self.source_dir = self.script_dir / "source_xmp_files"
-        self.dcp_dir = self.script_dir / "dcp_profile"
-        self.output_dir = self.script_dir / "output"
+        # Simple variables
+        self.profile_method = tk.StringVar(value="rob_shea")
+        self.rob_shea_temp = tk.StringVar(value="-50")
+        self.manual_profile = tk.StringVar()
+        self.xmp_profile_name = tk.StringVar()
         
-        self.setup_ui()
-        self.check_initial_state()
+        self.create_ui()
         
-    def setup_ui(self):
-        """Create the GUI interface"""
-        # Main frame
-        main_frame = ttk.Frame(self.root, padding="20")
-        main_frame.grid(row=0, column=0, sticky="nsew")
+    def create_ui(self):
+        """Simple UI creation"""
+        main = ttk.Frame(self.root, padding="20")
+        main.pack(fill="both", expand=True)
         
         # Title
-        title_label = ttk.Label(
-            main_frame, 
-            text="XMP Profile Baker",
-            font=("Arial", 16, "bold")
-        )
-        title_label.grid(row=0, column=0, columnspan=2, pady=(0, 10))
+        ttk.Label(main, text="XMP Profile Baker", font=("Arial", 16, "bold")).pack(pady=(0,20))
         
-        subtitle_label = ttk.Label(
-            main_frame,
-            text="Embed your custom infrared DCP profile into XMP files",
-            font=("Arial", 10)
-        )
-        subtitle_label.grid(row=1, column=0, columnspan=2, pady=(0, 20))
+        # Profile options
+        options = ttk.LabelFrame(main, text="Choose Profile Name Source", padding="15")
+        options.pack(fill="x", pady=(0,15))
         
-        # Status frame
-        self.status_frame = ttk.LabelFrame(main_frame, text="Status", padding="15")
-        self.status_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 20))
+        # Rob Shea option
+        ttk.Radiobutton(options, text="Rob Shea's Profile Pack", 
+                       variable=self.profile_method, value="rob_shea").pack(anchor="w")
+        rob_frame = ttk.Frame(options)
+        rob_frame.pack(fill="x", padx=(20,0), pady=(5,10))
+        ttk.Radiobutton(rob_frame, text="Temp -50", variable=self.rob_shea_temp, value="-50").pack(side="left")
+        ttk.Radiobutton(rob_frame, text="Temp -100", variable=self.rob_shea_temp, value="-100").pack(side="left", padx=(20,0))
         
-        self.status_label = ttk.Label(
-            self.status_frame,
-            text="Checking for DCP profile...",
-            font=("Arial", 10)
-        )
-        self.status_label.grid(row=0, column=0, sticky="w")
+        # XMP extract option
+        ttk.Radiobutton(options, text="Extract from XMP file", 
+                       variable=self.profile_method, value="xmp_extract").pack(anchor="w")
+        xmp_frame = ttk.Frame(options)
+        xmp_frame.pack(fill="x", padx=(20,0), pady=(5,10))
+        ttk.Button(xmp_frame, text="Browse XMP...", command=self.browse_xmp).pack(side="left")
+        self.xmp_status = ttk.Label(xmp_frame, text="No file selected")
+        self.xmp_status.pack(side="left", padx=(10,0))
         
-        # Instructions frame  
-        self.instructions_frame = ttk.LabelFrame(main_frame, text="Instructions", padding="15")
-        self.instructions_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(0, 20))
+        # Manual option
+        ttk.Radiobutton(options, text="Manual input", 
+                       variable=self.profile_method, value="manual").pack(anchor="w")
+        manual_frame = ttk.Frame(options)
+        manual_frame.pack(fill="x", padx=(20,0), pady=(5,0))
+        ttk.Label(manual_frame, text="Profile name:").pack(side="left")
+        ttk.Entry(manual_frame, textvariable=self.manual_profile, width=30).pack(side="left", padx=(10,0))
         
-        self.instructions_label = ttk.Label(
-            self.instructions_frame,
-            text="",
-            font=("Arial", 10),
-            wraplength=500,
-            justify="left"
-        )
-        self.instructions_label.grid(row=0, column=0, sticky="w")
+        # Warning for manual input
+        warning_frame = ttk.Frame(options)
+        warning_frame.pack(fill="x", padx=(20,0), pady=(2,10))
+        ttk.Label(warning_frame, text="Warning: Has to be exact, as seen in Lightroom Profile Selection.", 
+                 foreground="red", font=("Arial", 9)).pack(anchor="w")
         
-        # Progress bar
-        self.progress_frame = ttk.Frame(main_frame)
-        self.progress_frame.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(0, 20))
+        # Status
+        self.status = ttk.Label(main, text="Ready", foreground="green")
+        self.status.pack(pady=20)
         
-        self.progress = ttk.Progressbar(
-            self.progress_frame, 
-            mode='indeterminate'
-        )
-        self.progress.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+        # Buttons
+        self.buttons = ttk.Frame(main)
+        self.buttons.pack(pady=10)
+        ttk.Button(self.buttons, text="Process Files", command=self.process).pack(side="left", padx=(0,10))
         
-        self.progress_label = ttk.Label(self.progress_frame, text="")
-        self.progress_label.grid(row=0, column=1)
+        # Adobe Settings button (initially hidden)
+        self.adobe_button = ttk.Button(self.buttons, text="Write to Adobe Settings", command=self.write_to_adobe)
         
-        # Button frame
-        button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=5, column=0, columnspan=2, pady=(0, 10))
+        self.exit_button = ttk.Button(self.buttons, text="Exit", command=self.root.quit)
+        self.exit_button.pack(side="left")
         
-        self.action_button = ttk.Button(
-            button_frame,
-            text="Proceed",
-            command=self.handle_action,
-            state="disabled"
-        )
-        self.action_button.grid(row=0, column=0, padx=(0, 10))
+        # Done message area (initially hidden)
+        self.done_frame = ttk.Frame(main)
+        self.done_frame.pack(fill="x", pady=(20,0))
+        self.done_label = ttk.Label(self.done_frame, text="", foreground="green", font=("Arial", 10, "bold"))
+        self.done_label.pack()
         
-        self.refresh_button = ttk.Button(
-            button_frame,
-            text="Refresh",
-            command=self.check_initial_state
-        )
-        self.refresh_button.grid(row=0, column=1, padx=(0, 10))
-        
-        self.exit_button = ttk.Button(
-            button_frame,
-            text="Exit",
-            command=self.root.quit
-        )
-        self.exit_button.grid(row=0, column=2)
-        
-        # Configure grid weights
-        main_frame.columnconfigure(0, weight=1)
-        self.progress_frame.columnconfigure(0, weight=1)
-        
-    def check_initial_state(self):
-        """Check if DCP profile exists and update UI accordingly"""
-        dcp_files = list(self.dcp_dir.glob("*.dcp"))
-        
-        if dcp_files:
-            profile_name = dcp_files[0].name
-            self.status_label.config(
-                text=f"✓ DCP Profile found: {profile_name}",
-                foreground="green"
-            )
-            self.instructions_label.config(
-                text="Ready to process XMP files! Click 'Proceed' to embed your DCP profile into the XMP files."
-            )
-            self.action_button.config(text="Process XMP Files", state="normal")
-        else:
-            self.status_label.config(
-                text="⚠ No DCP profile found",
-                foreground="orange"
-            )
-            instructions = (
-                "1. Copy your custom infrared .dcp profile into the 'dcp_profile' folder\n\n"
-                "2. Profile location: %APPDATA%\\Adobe\\CameraRaw\\CameraProfiles\\Imported\n\n"
-                "3. Click 'Refresh' to check again, then 'Proceed' to continue"
-            )
-            self.instructions_label.config(text=instructions)
-            self.action_button.config(text="Process XMP Files", state="disabled")
+        # Bind updates
+        self.profile_method.trace("w", self.update_status)
+        self.rob_shea_temp.trace("w", self.update_status)
+        self.manual_profile.trace("w", self.update_status)
+        self.update_status()
     
-    def handle_action(self):
-        """Handle the main action button click"""
-        # Start processing in a separate thread
-        self.action_button.config(state="disabled")
-        self.refresh_button.config(state="disabled")
-        
-        processing_thread = threading.Thread(target=self.process_xmp_files)
-        processing_thread.daemon = True
-        processing_thread.start()
+    def update_status(self, *args):
+        """Update status message"""
+        method = self.profile_method.get()
+        if method == "rob_shea":
+            temp = self.rob_shea_temp.get()
+            self.status.config(text=f"Ready: Infrared Temp {temp}", foreground="green")
+        elif method == "xmp_extract":
+            if self.xmp_profile_name.get():
+                self.status.config(text=f"Ready: {self.xmp_profile_name.get()}", foreground="green")
+            else:
+                self.status.config(text="Select XMP file", foreground="orange")
+        elif method == "manual":
+            if self.manual_profile.get().strip():
+                self.status.config(text=f"Ready: {self.manual_profile.get()}", foreground="green")
+            else:
+                self.status.config(text="Enter profile name", foreground="orange")
     
-    def process_xmp_files(self):
-        """Process XMP files by embedding the DCP profile reference"""
+    def browse_xmp(self):
+        """Browse and extract profile from XMP file"""
+        # Start in Adobe Camera Raw imported settings directory
+        import os
+        adobe_presets_dir = os.path.expanduser("~") + r"\AppData\Roaming\Adobe\CameraRaw\ImportedSettings"
+        
+        # Check if the directory exists, fall back to home if not
+        if not os.path.exists(adobe_presets_dir):
+            adobe_presets_dir = os.path.expanduser("~")
+        
+        file_path = filedialog.askopenfilename(
+            title="Select XMP Preset File",
+            initialdir=adobe_presets_dir,
+            filetypes=[("XMP Files", "*.xmp"), ("All Files", "*.*")]
+        )
+        if not file_path:
+            return
+            
         try:
-            self.update_progress("Starting processing...", True)
+            with open(file_path, 'r') as f:
+                content = f.read()
+            match = re.search(r'crs:CameraProfile="([^"]*)"', content)
+            if match:
+                self.xmp_profile_name.set(match.group(1))
+                self.xmp_status.config(text=f"Found: {match.group(1)}", foreground="green")
+                self.profile_method.set("xmp_extract")
+            else:
+                messagebox.showerror("Error", "No CameraProfile found in XMP file")
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not read file: {e}")
+    
+    def get_profile_name(self):
+        """Get selected profile name"""
+        method = self.profile_method.get()
+        if method == "rob_shea":
+            return f"Infrared Temp {self.rob_shea_temp.get()}"
+        elif method == "xmp_extract":
+            return self.xmp_profile_name.get()
+        elif method == "manual":
+            return self.manual_profile.get().strip()
+        return None
+    
+    def sanitize_filename(self, name):
+        """Sanitize profile name for use in filenames"""
+        # Remove or replace forbidden characters for Windows filenames
+        forbidden_chars = '<>:"/\\|?*'
+        for char in forbidden_chars:
+            name = name.replace(char, '_')
+        # Replace spaces with underscores for cleaner filenames
+        name = name.replace(' ', '_')
+        # Remove multiple consecutive underscores
+        while '__' in name:
+            name = name.replace('__', '_')
+        # Strip leading/trailing underscores
+        name = name.strip('_')
+        return name
+    
+    def create_filename_with_profile(self, original_name, profile_name):
+        """Create new filename with profile name appended"""
+        stem = Path(original_name).stem  # filename without extension
+        ext = Path(original_name).suffix  # .xmp
+        safe_profile = self.sanitize_filename(profile_name)
+        return f"{stem}_{safe_profile}{ext}"
+    
+    def process(self):
+        """Start processing"""
+        profile_name = self.get_profile_name()
+        if not profile_name:
+            messagebox.showerror("Error", "Please select a profile source")
+            return
+        # Hide Adobe button and clear done message while processing
+        self.adobe_button.pack_forget()
+        self.done_label.config(text="")
+        Thread(target=self.process_files, daemon=True).start()
+    
+    def process_files(self):
+        """Process XMP files - simple version"""
+        try:
+            self.root.after(0, lambda: self.status.config(text="Processing...", foreground="blue"))
             
-            # Get DCP profile
-            dcp_files = list(self.dcp_dir.glob("*.dcp"))
-            dcp_profile = dcp_files[0]
-            profile_name = dcp_profile.stem  # Filename without extension
+            # Get profile name and setup paths
+            profile_name = self.get_profile_name()
+            source_dir = Path(__file__).parent / "source_xmp_files"
+            output_dir = Path(__file__).parent / "output"
             
-            self.update_progress(f"Using profile: {profile_name}", True)
-            
-            # Get source XMP files
-            xmp_files = list(self.source_dir.glob("*.xmp"))
-            
+            # Get XMP files
+            xmp_files = list(source_dir.glob("*.xmp"))
             if not xmp_files:
-                self.update_progress("No XMP files found in source folder", False)
-                messagebox.showerror(
-                    "Error",
-                    "No XMP files found in 'source_xmp_files' folder.\n\nPlease ensure the XMP files are in the correct location."
-                )
-                return
+                raise Exception("No XMP files found in source_xmp_files folder")
             
-            self.update_progress(f"Found {len(xmp_files)} XMP files", True)
+            # Create output directory
+            if output_dir.exists():
+                shutil.rmtree(output_dir)
+            output_dir.mkdir()
             
-            # Clear output directory
-            if self.output_dir.exists():
-                shutil.rmtree(self.output_dir)
-            self.output_dir.mkdir()
+            # Create subfolder for Rob Shea profiles
+            if self.profile_method.get() == "rob_shea":
+                temp = self.rob_shea_temp.get()
+                output_dir = output_dir / f"Rob_Shea_Temp_{temp}"
+                output_dir.mkdir()
             
-            processed_count = 0
-            
+            # Process each file
+            count = 0
             for xmp_file in xmp_files:
-                self.update_progress(f"Processing: {xmp_file.name}", True)
-                
                 try:
-                    # Read XMP content
-                    with open(xmp_file, 'r', encoding='utf-8') as f:
+                    with open(xmp_file, 'r') as f:
                         content = f.read()
                     
-                    # Embed the DCP profile reference
-                    updated_content = self.embed_dcp_profile(content, profile_name)
+                    # Add profile to XMP
+                    updated = self.add_profile_to_xmp(content, profile_name)
                     
-                    # Write to output
-                    output_path = self.output_dir / xmp_file.name
-                    with open(output_path, 'w', encoding='utf-8') as f:
-                        f.write(updated_content)
+                    # Create new filename with profile name
+                    new_filename = self.create_filename_with_profile(xmp_file.name, profile_name)
                     
-                    processed_count += 1
-                    
+                    # Save updated file
+                    with open(output_dir / new_filename, 'w') as f:
+                        f.write(updated)
+                    count += 1
                 except Exception as e:
-                    self.update_progress(f"Error processing {xmp_file.name}: {str(e)}", False)
-                    continue
+                    print(f"Error with {xmp_file.name}: {e}")
             
-            self.update_progress(f"✓ Complete! Processed {processed_count} files", False)
-            
-            # Show success message
-            self.root.after(0, lambda: messagebox.showinfo(
-                "Success!",
-                f"Processing complete!\n\n"
-                f"Processed: {processed_count} XMP files\n"
-                f"Profile: {profile_name}\n\n"
-                f"Output saved to 'output' folder.\n"
-                f"Ready for distribution!"
-            ))
+            # Show success
+            self.root.after(0, lambda: self.show_done_message(
+                f"Done! Processed {count} files with profile: {profile_name}"))
             
         except Exception as e:
-            self.update_progress(f"Error: {str(e)}", False)
-            self.root.after(0, lambda: messagebox.showerror("Error", f"Processing failed:\n{str(e)}"))
-        
+            self.root.after(0, lambda: messagebox.showerror("Error", str(e)))
         finally:
-            # Re-enable buttons
-            self.root.after(0, lambda: self.action_button.config(state="normal"))
-            self.root.after(0, lambda: self.refresh_button.config(state="normal"))
+            self.root.after(0, lambda: self.status.config(text="Ready", foreground="green"))
     
-    def embed_dcp_profile(self, content: str, profile_name: str) -> str:
-        """Embed DCP profile reference into XMP content"""
-        # Remove any existing camera profile references
+    def show_done_message(self, message):
+        """Show done message at bottom of window and reveal Adobe button"""
+        self.done_label.config(text=message, foreground="green")
+        # Show the Adobe Settings button after processing is complete
+        self.adobe_button.pack(side="left", padx=(0,10), before=self.exit_button)
+    
+    def write_to_adobe(self):
+        """Write output files to Adobe Camera Raw Settings directory"""
+        profile_name = self.get_profile_name()
+        if not profile_name:
+            messagebox.showerror("Error", "Please select a profile source first")
+            return
+        Thread(target=self.write_to_adobe_thread, daemon=True).start()
+    
+    def write_to_adobe_thread(self):
+        """Write files directly to Adobe Camera Raw Settings"""
+        try:
+            self.root.after(0, lambda: self.status.config(text="Writing to Adobe Settings...", foreground="blue"))
+            
+            # Get profile name and setup paths
+            profile_name = self.get_profile_name()
+            source_dir = Path(__file__).parent / "source_xmp_files"
+            
+            # Adobe Camera Raw Settings directory
+            import os
+            adobe_settings_dir = Path(os.path.expanduser("~")) / "AppData" / "Roaming" / "Adobe" / "CameraRaw" / "Settings"
+            
+            # Create directory if it doesn't exist
+            adobe_settings_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Get XMP files
+            xmp_files = list(source_dir.glob("*.xmp"))
+            if not xmp_files:
+                raise Exception("No XMP files found in source_xmp_files folder")
+            
+            # Process each file
+            count = 0
+            for xmp_file in xmp_files:
+                try:
+                    with open(xmp_file, 'r') as f:
+                        content = f.read()
+                    
+                    # Add profile to XMP
+                    updated = self.add_profile_to_xmp(content, profile_name)
+                    
+                    # Create new filename with profile name
+                    new_filename = self.create_filename_with_profile(xmp_file.name, profile_name)
+                    
+                    # Save updated file to Adobe Settings
+                    with open(adobe_settings_dir / new_filename, 'w') as f:
+                        f.write(updated)
+                    count += 1
+                except Exception as e:
+                    print(f"Error with {xmp_file.name}: {e}")
+            
+            # Show success
+            self.root.after(0, lambda: self.show_done_message(
+                f"Done! {count} files written to Adobe Camera Raw Settings with profile: {profile_name}"))
+            
+        except Exception as e:
+            self.root.after(0, lambda: messagebox.showerror("Error", str(e)))
+        finally:
+            self.root.after(0, lambda: self.status.config(text="Ready", foreground="green"))
+    
+    def add_profile_to_xmp(self, content: str, profile_name: str) -> str:
+        """Add camera profile to XMP content and update group name for Rob Shea profiles"""
+        # Remove existing profile references
         content = re.sub(r'\s*crs:CameraProfile="[^"]*"', '', content)
-        content = re.sub(r'\s*crs:CameraModelRestriction="[^"]*"', '', content)
-        content = re.sub(r'\s*crs:CameraProfileDigest="[^"]*"', '', content)
         
-        # Find the description tag and add the camera profile reference
-        # Look for the line with ProcessVersion to insert after it
+        # Add new profile after ProcessVersion
         pattern = r'(\s*crs:ProcessVersion="[^"]*")'
         replacement = rf'\1\n   crs:CameraProfile="{profile_name}"'
         
         if re.search(pattern, content):
             content = re.sub(pattern, replacement, content)
         else:
-            # Fallback: insert before HasSettings if ProcessVersion not found
+            # Fallback: add before HasSettings
             pattern = r'(\s*crs:HasSettings="[^"]*")'
             replacement = rf'   crs:CameraProfile="{profile_name}"\n\1'
             content = re.sub(pattern, replacement, content)
         
+        # Update group name for Rob Shea profiles
+        if self.profile_method.get() == "rob_shea":
+            temp = self.rob_shea_temp.get()
+            ir_suffix = f" IR{temp}"
+            
+            # Find and update the group name in rdf:li xml:lang="x-default"
+            group_pattern = r'(<rdf:li xml:lang="x-default">)([^<]*)(</rdf:li>)'
+            
+            def update_group_name(match):
+                opening_tag = match.group(1)
+                current_name = match.group(2)
+                closing_tag = match.group(3)
+                
+                # Only add suffix if it's not already there
+                if ir_suffix not in current_name:
+                    new_name = current_name + ir_suffix
+                else:
+                    new_name = current_name
+                
+                return opening_tag + new_name + closing_tag
+            
+            content = re.sub(group_pattern, update_group_name, content)
+        
         return content
     
-    def update_progress(self, message: str, show_progress: bool):
-        """Update progress display"""
-        def update():
-            self.progress_label.config(text=message)
-            if show_progress:
-                self.progress.start(10)
-            else:
-                self.progress.stop()
-        
-        self.root.after(0, update)
-        time.sleep(0.1)  # Small delay for visual feedback
-    
     def run(self):
-        """Start the GUI application"""
+        """Start the app"""
         self.root.mainloop()
 
 if __name__ == "__main__":
-    app = XMPProfileBaker()
-    app.run()
+    XMPProfileBaker().run()
