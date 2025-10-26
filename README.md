@@ -10,6 +10,7 @@ This project easily lets users create custom .xmp files to do one-click-channel-
 
 - This projects files
 - a .dcp Profile that extends white-balance
+- Lightroom/Photoshop Classic
 - Python not required: if missing portable version will be downloaded automatically
 
 ## How this works
