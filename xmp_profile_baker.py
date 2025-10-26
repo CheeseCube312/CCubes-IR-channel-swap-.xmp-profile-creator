@@ -328,8 +328,8 @@ class XMPProfileBaker:
             temp = self.rob_shea_temp.get()
             ir_suffix = f" IR{temp}"
             
-            # Find and update the group name in rdf:li xml:lang="x-default"
-            group_pattern = r'(<rdf:li xml:lang="x-default">)([^<]*)(</rdf:li>)'
+            # Find and update ONLY the group name in the <crs:Group> section
+            group_pattern = r'(<crs:Group>\s*<rdf:Alt>\s*<rdf:li xml:lang="x-default">)([^<]*)(</rdf:li>\s*</rdf:Alt>\s*</crs:Group>)'
             
             def update_group_name(match):
                 opening_tag = match.group(1)
@@ -344,7 +344,7 @@ class XMPProfileBaker:
                 
                 return opening_tag + new_name + closing_tag
             
-            content = re.sub(group_pattern, update_group_name, content)
+            content = re.sub(group_pattern, update_group_name, content, flags=re.DOTALL)
         
         return content
     
