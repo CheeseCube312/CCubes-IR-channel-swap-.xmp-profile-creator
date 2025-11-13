@@ -46,18 +46,18 @@ XMP_Profile_Baker/
 
 1. **Run the Program**
    - Double-click `run_portable.bat`
-   - Select either:
+   - Choose Profile Name source by selecting either:
      1. Rob Shea's Profiles
      2. Extract from .xmp file*
      3. Manual input
-   - Run program
+   - Click "Process Files"
 
 2. **Get Your Files**
    - Processed XMP files will be in the `output/` folder
-   - Click 
-
-3. **Install in Lightroom**
+   - Click "Write to Adobe Settings"
+   or
    - Copy + Paste them into `%APPDATA%\Adobe\CameraRaw\Settings`
+3. **Check Lightroom**
    - Restart Lightroom
    - Check under "Profiles" if they're installed
 
