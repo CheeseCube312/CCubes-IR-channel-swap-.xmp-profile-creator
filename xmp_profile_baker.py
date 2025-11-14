@@ -9,6 +9,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from pathlib import Path
 from threading import Thread
+import platform
+import os
 
 class XMPProfileBaker:
     def __init__(self):
@@ -24,6 +26,31 @@ class XMPProfileBaker:
         self.xmp_profile_name = tk.StringVar()
         
         self.create_ui()
+    
+    def get_adobe_presets_dir(self):
+        """Get Adobe Camera Raw ImportedSettings directory for current platform"""
+        home = os.path.expanduser("~")
+        if platform.system() == "Windows":
+            adobe_dir = os.path.join(home, "AppData", "Roaming", "Adobe", "CameraRaw", "ImportedSettings")
+        elif platform.system() == "Darwin":  # macOS
+            adobe_dir = os.path.join(home, "Library", "Application Support", "Adobe", "CameraRaw", "ImportedSettings")
+        else:  # Linux and other systems
+            adobe_dir = os.path.join(home, ".adobe", "CameraRaw", "ImportedSettings")
+        
+        # Check if directory exists, fall back to home if not
+        if not os.path.exists(adobe_dir):
+            return home
+        return adobe_dir
+    
+    def get_adobe_settings_dir(self):
+        """Get Adobe Camera Raw Settings directory for current platform"""
+        home = Path(os.path.expanduser("~"))
+        if platform.system() == "Windows":
+            return home / "AppData" / "Roaming" / "Adobe" / "CameraRaw" / "Settings"
+        elif platform.system() == "Darwin":  # macOS
+            return home / "Library" / "Application Support" / "Adobe" / "CameraRaw" / "Settings"
+        else:  # Linux and other systems
+            return home / ".adobe" / "CameraRaw" / "Settings"
         
     def create_ui(self):
         """Simple UI creation"""
@@ -115,12 +142,7 @@ class XMPProfileBaker:
     def browse_xmp(self):
         """Browse and extract profile from XMP file"""
         # Start in Adobe Camera Raw imported settings directory
-        import os
-        adobe_presets_dir = os.path.expanduser("~") + r"\AppData\Roaming\Adobe\CameraRaw\ImportedSettings"
-        
-        # Check if the directory exists, fall back to home if not
-        if not os.path.exists(adobe_presets_dir):
-            adobe_presets_dir = os.path.expanduser("~")
+        adobe_presets_dir = self.get_adobe_presets_dir()
         
         file_path = filedialog.askopenfilename(
             title="Select XMP Preset File",
@@ -265,9 +287,8 @@ class XMPProfileBaker:
             profile_name = self.get_profile_name()
             source_dir = Path(__file__).parent / "source_xmp_files"
             
-            # Adobe Camera Raw Settings directory
-            import os
-            adobe_settings_dir = Path(os.path.expanduser("~")) / "AppData" / "Roaming" / "Adobe" / "CameraRaw" / "Settings"
+            # Adobe Camera Raw Settings directory (cross-platform)
+            adobe_settings_dir = self.get_adobe_settings_dir()
             
             # Create directory if it doesn't exist
             adobe_settings_dir.mkdir(parents=True, exist_ok=True)
