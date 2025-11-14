@@ -10,7 +10,8 @@ This project easily lets users create custom .xmp files to do one-click-channel-
 
 - This projects files
 - a .dcp Profile that extends white-balance
-- Python not required: if missing, portable version will be downloaded automatically (all platforms)
+- Lightroom Classic
+- Python not required: if missing portable version will be downloaded automatically
 
 ## How this works
 
@@ -60,17 +61,19 @@ XMP_Profile_Baker/
      1. Rob Shea's Profiles
      2. Extract from .xmp file*
      3. Manual input
-   - Run program
+   - Click "Process Files"
 
 2. **Get Your Files**
    - Processed XMP files will be in the `output/` folder
    - Click 
 
 3. **Install in Lightroom**
+   - use the "Write to Adobe Settings" button for automatic installation
+   or
    - **Windows**: Copy files into `%APPDATA%\Adobe\CameraRaw\Settings`
    - **macOS**: Copy files into `~/Library/Application Support/Adobe/CameraRaw/Settings`
    - **Linux**: Copy files into `~/.adobe/CameraRaw/Settings`
-   - Or use the "Write to Adobe Settings" button for automatic installation
+
    - Restart Lightroom
    - Check under "Profiles" if they're installed
 
