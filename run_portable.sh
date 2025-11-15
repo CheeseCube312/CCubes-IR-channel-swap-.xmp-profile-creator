@@ -80,39 +80,92 @@ install_portable_python() {
     
     local temp_file="$SCRIPT_DIR/python_temp.tar.gz"
     
-    # Download and extract
+    # Download and extract with verification
+    local download_success=false
+    
     if command -v curl &> /dev/null; then
-        curl -L "$python_url" -o "$temp_file" --progress-bar && \
-        tar -xzf "$temp_file" -C "$PYTHON_DIR" --strip-components=1 && \
-        rm -f "$temp_file"
+        print_info "Using curl for download..."
+        if curl -L "$python_url" -o "$temp_file" --progress-bar --connect-timeout 30 --max-time 300; then
+            download_success=true
+        fi
     elif command -v wget &> /dev/null; then
-        wget "$python_url" -O "$temp_file" --progress=bar:force 2>/dev/null && \
-        tar -xzf "$temp_file" -C "$PYTHON_DIR" --strip-components=1 && \
-        rm -f "$temp_file"
+        print_info "Using wget for download..."
+        if wget "$python_url" -O "$temp_file" --progress=bar:force --timeout=30 --tries=3 2>/dev/null; then
+            download_success=true
+        fi
     else
         print_error "Need curl or wget for download"
         return 1
     fi
     
-    # Simple verification
-    if [[ -f "$PYTHON_EXE" ]]; then
-        return 0
-    else
+    # Verify download was successful
+    if [[ "$download_success" == false ]] || [[ ! -f "$temp_file" ]] || [[ ! -s "$temp_file" ]]; then
+        print_error "Download failed or file is empty"
+        rm -f "$temp_file"
         return 1
     fi
+    
+    print_info "Download completed, extracting..."
+    
+    # Extract with error checking
+    if tar -xzf "$temp_file" -C "$PYTHON_DIR" --strip-components=1; then
+        rm -f "$temp_file"
+        print_status "Extraction completed"
+    else
+        print_error "Extraction failed"
+        rm -f "$temp_file"
+        return 1
+    fi
+    
+    # Comprehensive verification
+    if [[ ! -f "$PYTHON_EXE" ]]; then
+        print_error "Python executable not found after installation"
+        return 1
+    fi
+    
+    # Test Python functionality
+    print_info "Testing Python installation..."
+    
+    # Test basic Python execution
+    if ! "$PYTHON_EXE" -c "print('Python works')" &>/dev/null; then
+        print_error "Python installation failed - basic execution test failed"
+        return 1
+    fi
+    
+    # Test tkinter availability (critical for GUI)
+    if ! "$PYTHON_EXE" -c "import tkinter; print('tkinter available')" &>/dev/null; then
+        print_error "Python installation failed - tkinter not available"
+        print_error "GUI applications will not work without tkinter"
+        return 1
+    fi
+    
+    print_status "Python installation verified successfully"
+    return 0
 }
 
-# Check if portable Python exists
+# Check if portable Python exists and is functional
 if [[ -f "$PYTHON_EXE" ]]; then
-    print_status "Portable Python found - Starting program..."
-    PYTHON_CMD="$PYTHON_EXE"
-    # Skip to running the program
-else
+    print_info "Checking existing Python installation..."
+    
+    # Test if existing Python actually works
+    if "$PYTHON_EXE" -c "import sys, tkinter; print(f'Python {sys.version} with tkinter ready')" &>/dev/null; then
+        print_status "Portable Python found and functional - Starting program..."
+        PYTHON_CMD="$PYTHON_EXE"
+        # Skip to running the program
+    else
+        print_warning "Found Python installation but it's not functional"
+        print_info "Reinstalling portable Python..."
+        rm -rf "$PYTHON_DIR"
+        # Continue to installation
+    fi
+fi
+
+if [[ ! -f "$PYTHON_EXE" ]]; then
     print_info "No portable Python found - Setting up..."
     
     # Detect OS and architecture
-    local os_type=""
-    local arch=""
+    os_type=""
+    arch=""
     
     if [[ "$OSTYPE" == "darwin"* ]]; then
         os_type="darwin"
@@ -127,18 +180,44 @@ else
         exit 1
     fi
     
-    # Install portable Python (simplified)
-    if install_portable_python "$os_type" "$arch"; then
+    # Install portable Python with timeout and retry
+    print_info "Installing portable Python (this may take a few minutes)..."
+    
+    # Give installation some time to complete
+    if timeout 600 bash -c 'install_portable_python "'$os_type'" "'$arch'"' 2>/dev/null || install_portable_python "$os_type" "$arch"; then
         PYTHON_CMD="$PYTHON_EXE"
         print_status "Portable Python setup completed!"
+        
+        # Wait a moment for file system to catch up
+        sleep 2
+        
+        # Final verification that Python actually works
+        if ! "$PYTHON_CMD" -c "import sys; print(f'Python {sys.version} ready')" &>/dev/null; then
+            print_error "Installation completed but Python is not functional"
+            print_error "Try running the script again or install Python manually"
+            read -p "Press Enter to exit..."
+            exit 1
+        fi
     else
-        print_error "Setup failed. Please install Python manually."
+        print_error "Setup failed. Please install Python manually from https://www.python.org/downloads/"
+        print_error "Make sure Python 3.6+ with tkinter is installed"
         read -p "Press Enter to exit..."
         exit 1
     fi
 fi
 
 
+
+# Final verification before running
+print_info "Performing final checks..."
+
+# Verify Python is still working
+if ! "$PYTHON_CMD" -c "print('Final Python check passed')" &>/dev/null; then
+    print_error "Python installation became non-functional"
+    print_error "Try running the script again or install Python manually"
+    read -p "Press Enter to exit..."
+    exit 1
+fi
 
 # Check if the main Python file exists
 MAIN_SCRIPT="$SCRIPT_DIR/xmp_profile_baker.py"
@@ -171,9 +250,16 @@ EXIT_CODE=$?
 echo
 if [[ $EXIT_CODE -eq 0 ]]; then
     print_status "Program completed successfully!"
+    echo "Output files should be available in the 'output' directory."
 else
-    print_error "Program encountered an error"
-    echo "Try running: $PYTHON_CMD xmp_profile_baker.py"
+    print_error "Program encountered an error (Exit code: $EXIT_CODE)"
+    echo "Manual command to try: $PYTHON_CMD xmp_profile_baker.py"
+    echo "Make sure all source XMP files are present in 'source_xmp_files' directory."
+    echo
+    print_info "Troubleshooting tips:"
+    echo "1. Make sure all source XMP files exist"
+    echo "2. Check that you have write permissions in the script directory"
+    echo "3. Ensure no antivirus software is blocking the program"
 fi
 
 echo
