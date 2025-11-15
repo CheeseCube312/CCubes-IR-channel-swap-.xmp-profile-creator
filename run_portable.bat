@@ -16,6 +16,9 @@ set "PYTHON_EXE=%PYTHON_DIR%\python.exe"
 set "PYTHON_VERSION=3.12.7"
 set "PYTHON_URL=https://www.python.org/ftp/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-embed-amd64.zip"
 set "PYTHON_ZIP=%SCRIPT_DIR%python_temp.zip"
+set "TKINTER_URL=https://www.python.org/ftp/python/%PYTHON_VERSION%/python-%PYTHON_VERSION%-amd64.exe"
+set "TKINTER_TEMP=%SCRIPT_DIR%python_full_temp.exe"
+set "TKINTER_EXTRACT=%SCRIPT_DIR%tkinter_temp"
 
 REM Check if portable Python exists
 if exist "%PYTHON_EXE%" (
@@ -33,6 +36,8 @@ if not errorlevel 1 (
 )
 
 echo [!] No Python installation found
+
+:install_python
 echo [→] Setting up portable Python environment...
 echo.
 
@@ -84,8 +89,48 @@ if not exist "%PYTHON_EXE%" (
     goto :error_exit
 )
 
-echo [✓] Portable Python setup completed successfully!
+echo [→] Adding GUI support (tkinter)...
+
+REM Download tkinter components
+powershell -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $ProgressPreference = 'SilentlyContinue'; try { Invoke-WebRequest -Uri '%TKINTER_URL%' -OutFile '%TKINTER_TEMP%' -UseBasicParsing; Write-Host '[✓] GUI components download completed' } catch { Write-Host '[!] GUI download failed - program may not work' } }"
+
+REM Simple tkinter setup - extract what we need
+if exist "%TKINTER_TEMP%" (
+    echo [→] Setting up GUI support...
+    if not exist "%TKINTER_EXTRACT%" mkdir "%TKINTER_EXTRACT%"
+    
+    REM Extract installer
+    powershell -Command "Start-Process '%TKINTER_TEMP%' -ArgumentList '/quiet', '/layout', '%TKINTER_EXTRACT%' -Wait" >nul 2>&1
+    
+    REM Copy tkinter files (simple approach)
+    for /r "%TKINTER_EXTRACT%" %%f in (core.msi) do (
+        if exist "%%f" (
+            msiexec /a "%%f" /qn TARGETDIR="%TKINTER_EXTRACT%\core" >nul 2>&1
+            if exist "%TKINTER_EXTRACT%\core\Lib\tkinter" (
+                if not exist "%PYTHON_DIR%\Lib" mkdir "%PYTHON_DIR%\Lib"
+                xcopy "%TKINTER_EXTRACT%\core\Lib\tkinter" "%PYTHON_DIR%\Lib\tkinter\" /E /I /Q >nul 2>&1
+            )
+            if exist "%TKINTER_EXTRACT%\core\DLLs\_tkinter.pyd" (
+                if not exist "%PYTHON_DIR%\DLLs" mkdir "%PYTHON_DIR%\DLLs"
+                copy "%TKINTER_EXTRACT%\core\DLLs\_tkinter.pyd" "%PYTHON_DIR%\DLLs\" >nul 2>&1
+            )
+        )
+    )
+    
+    REM Cleanup
+    rmdir /s /q "%TKINTER_EXTRACT%" 2>nul
+    del "%TKINTER_TEMP%" 2>nul
+    
+    echo [✓] GUI support added
+)
+
+echo [✓] Portable Python setup completed!
 echo.
+
+
+
+:install_python
+echo [→] Setting up portable Python environment...
 
 :run_program
 echo [→] Starting XMP Profile Baker...
@@ -98,6 +143,9 @@ REM Check if the program ran successfully
 if errorlevel 1 (
     echo.
     echo [✗] Program encountered an error
+    echo.
+    echo Try running this to see the error details:
+    echo "%PYTHON_EXE%" "%SCRIPT_DIR%xmp_profile_baker.py"
     goto :error_exit
 )
 
@@ -112,10 +160,10 @@ echo  Setup or execution failed!
 echo ===============================================
 echo.
 echo Troubleshooting:
-echo - Ensure you have internet connection for first-time setup
-echo - Check that Windows Defender isn't blocking downloads
-echo - Try running as administrator if permission issues occur
-echo - For manual setup: Install Python from https://python.org
+echo - Ensure internet connection for first-time setup
+echo - Check Windows Defender isn't blocking downloads
+echo - Try running as administrator if needed
+echo - Manual debug: "%PYTHON_EXE%" "%SCRIPT_DIR%xmp_profile_baker.py"
 echo.
 echo Press any key to exit...
 pause >nul
