@@ -82,35 +82,6 @@ XMP_Profile_Baker/
 Open Lightroom, select your extended-WB-profile, Click '+' in "Presets", then "Create Preset". Set [x] tick at "Treatment & Profile", create preset.
 You can now load that .xml into the program. The "Browse Files..." should open the correct folder by default
 
-## Platform-Specific Setup
-
-### Windows
-- No additional setup required
-- Portable Python downloaded automatically if missing
-- Double-click `run_portable.bat` to start
-
-### macOS
-- No additional setup required
-- Portable Python downloaded automatically if missing (~20MB one-time download)
-- Double-click `run_portable.sh` or run `./run_portable.sh` in Terminal
-- If you get "cannot be opened because it is from an unidentified developer":
-  - Right-click the file → "Open With" → "Terminal"
-  - Or run: `xattr -d com.apple.quarantine run_portable.sh`
-
-### Linux
-- No additional setup required  
-- Portable Python downloaded automatically if missing (~20MB one-time download)
-- Make script executable: `chmod +x run_portable.sh`
-- Run: `./run_portable.sh`
-
-## Requirements
-
-- **Operating System**: Windows (10/11), macOS (10.14+), or Linux
-- **Python**: Not required - portable version downloaded automatically 
-- **Custom infrared DCP profile** (created for your camera)
-- **Adobe Lightroom** (Photoshop not required)
-- **Internet connection**: Only for first-time Python download (~20MB)
-
 ## Included Profiles
 
 The tool includes these infrared channel manipulation profiles:
@@ -135,33 +106,6 @@ The tool includes these infrared channel manipulation profiles:
 - **Swap RB Warp GR.xmp** - Red↔Blue swap + Green→Red warp
 - **Swap RG Warp BG.xmp** - Red↔Green swap + Blue→Green warp
 - **Swap RG Warp BR.xmp** - Red↔Green swap + Blue→Red warp
-
-
-## Troubleshooting
-
-### Common Issues
-
-**"Python not found" / Download Issues**
-- **All Platforms**: Python downloads automatically on first run
-- If download fails: Check internet connection and try again
-- If problems persist: Install Python manually from [python.org](https://python.org)
-- **Manual fallback**: Run `python3 xmp_profile_baker.py` directly
-
-**"Download failed" / "curl/wget not found"**
-- **macOS**: Install Xcode Command Line Tools: `xcode-select --install`
-- **Linux**: Install curl or wget: `sudo apt install curl` or `sudo apt install wget`
-
-**"Permission denied" (macOS/Linux)**
-- Make script executable: `chmod +x run_portable.sh`
-- Or run directly: `python3 xmp_profile_baker.py`
-
-**"No XMP files found"**
-- The source XMP files should be included in `source_xmp_files/` folder
-- If missing, re-download the tool
-
-**macOS "unidentified developer" warning**
-- Right-click → "Open With" → "Terminal"
-- Or remove quarantine: `xattr -d com.apple.quarantine run_portable.sh`
 
 ## License
 
