@@ -111,10 +111,3 @@ The tool includes these infrared channel manipulation profiles:
 
 MIT License - Free for personal and commercial use
 
-## Support
-
-For issues or questions, visit the project repository or create an issue.
-
----
-
-**Created by Josef Brockamp using Copilot** | [github.com/CheeseCube312](https://github.com/CheeseCube312)
